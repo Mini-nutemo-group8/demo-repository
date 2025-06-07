@@ -1,0 +1,18 @@
+# Use Node.js LTS version
+FROM node:18-alpine
+
+# Install OpenSSL and whois for SSL/domain checks
+RUN apk add --no-cache openssl whois
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Install app dependencies
+COPY package*.json ./
+RUN npm install
+
+# Bundle app source
+COPY . .
+
+# Start the workers
+CMD ["node", "src/workers/monitorWorker.js"] 

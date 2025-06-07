@@ -1,0 +1,5 @@
+node_modules/
+.env
+*.log
+logs/
+db_backup.sql.gz

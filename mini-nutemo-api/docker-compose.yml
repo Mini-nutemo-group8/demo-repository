@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # Frontend Service
+  frontend:
+    build:
+      context: ../frontend  # Adjust this path to your frontend directory
+      dockerfile: Dockerfile
+    volumes:
+      - ../frontend/dist:/usr/share/nginx/html  # Adjust this path to your frontend build output
+    networks:
+      - app-network
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=your_password
+      - DB_NAME=mininetumo
+      - JWT_SECRET=your_jwt_secret
+      - MAILTRAP_HOST=smtp.mailtrap.io
+      - MAILTRAP_PORT=2525
+      - MAILTRAP_USER=your_mailtrap_user
+      - MAILTRAP_PASS=your_mailtrap_password
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - app-network
+
+  # Monitoring Worker
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=your_password
+      - DB_NAME=mininetumo
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - app-network
+
+  # SSL Checker Worker
+  ssl-checker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    command: node src/workers/sslChecker.js
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=your_password
+      - DB_NAME=mininetumo
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - app-network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=your_password
+      - MYSQL_DATABASE=mininetumo
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./src/config/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    networks:
+      - app-network
+
+  # Redis for caching
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - app-network
+
+  # NGINX Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../frontend/dist:/usr/share/nginx/html  # Mount frontend build files
+    depends_on:
+      - api
+      - frontend
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data: 
